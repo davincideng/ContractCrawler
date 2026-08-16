@@ -85,7 +85,7 @@ class MainWindow(QWidget):
         left_layout.setContentsMargins(16, 24, 16, 24)
         left_layout.setSpacing(12)
 
-        left_title = QLabel("合同采集系统")
+        left_title = QLabel("合同采集系统Win10")
         left_title.setObjectName("LeftTitle")
         left_title.setAlignment(Qt.AlignCenter)
         left_layout.addWidget(left_title)
@@ -108,22 +108,22 @@ class MainWindow(QWidget):
         left_layout.addWidget(self.browser_label)
         left_layout.addWidget(mode_label)
 
-        # 新增：浏览器下载区域
-        left_layout.addSpacing(20)
-        tip_label = QLabel("浏览器未安装？点击下载：")
-        tip_label.setObjectName("InfoLabel")
-        left_layout.addWidget(tip_label)
-
-        self.download_edge_btn = QPushButton("下载Edge浏览器")
-        self.download_edge_btn.setFixedHeight(30)
-        self.download_edge_btn.clicked.connect(self.download_edge)
-        left_layout.addWidget(self.download_edge_btn)
-
-        self.download_chrome_btn = QPushButton("下载 Chrome 浏览器")
-        self.download_chrome_btn.setFixedHeight(30)
-        # 修复：正确绑定按钮事件
-        self.download_chrome_btn.clicked.connect(self.download_chrome)
-        left_layout.addWidget(self.download_chrome_btn)
+        # # 新增：浏览器下载区域
+        # left_layout.addSpacing(20)
+        # tip_label = QLabel("浏览器未安装？点击下载：")
+        # tip_label.setObjectName("InfoLabel")
+        # left_layout.addWidget(tip_label)
+        #
+        # self.download_edge_btn = QPushButton("下载Edge浏览器")
+        # self.download_edge_btn.setFixedHeight(30)
+        # self.download_edge_btn.clicked.connect(self.download_edge)
+        # left_layout.addWidget(self.download_edge_btn)
+        #
+        # self.download_chrome_btn = QPushButton("下载 Chrome 浏览器")
+        # self.download_chrome_btn.setFixedHeight(30)
+        # # 修复：正确绑定按钮事件
+        # self.download_chrome_btn.clicked.connect(self.download_chrome)
+        # left_layout.addWidget(self.download_chrome_btn)
 
         left_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         main_layout.addWidget(left_panel)
