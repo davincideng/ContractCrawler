@@ -18,7 +18,7 @@ class MainWindow(QWidget):
         super().__init__()
         self.browserCombo = QComboBox()
         self.browserCombo.addItems([
-            "Edge",
+            # "Edge",
             "Chrome"
         ])
         self.browserCombo.setFixedHeight(32)
@@ -85,7 +85,7 @@ class MainWindow(QWidget):
         left_layout.setContentsMargins(16, 24, 16, 24)
         left_layout.setSpacing(12)
 
-        left_title = QLabel("合同采集系统")
+        left_title = QLabel("合同采集系统WIN7")
         left_title.setObjectName("LeftTitle")
         left_title.setAlignment(Qt.AlignCenter)
         left_layout.addWidget(left_title)
@@ -97,7 +97,7 @@ class MainWindow(QWidget):
         self.expire_label.setObjectName("InfoLabel")
         self.ip_label = QLabel("")
         self.ip_label.setObjectName("InfoLabel")
-        self.browser_label = QLabel("浏览器：Edge")
+        self.browser_label = QLabel("浏览器：Chrome")
         self.browser_label.setObjectName("InfoLabel")
         mode_label = QLabel("保存格式：CSV")
         mode_label.setObjectName("InfoLabel")
@@ -110,20 +110,20 @@ class MainWindow(QWidget):
 
         # 新增：浏览器下载区域
         left_layout.addSpacing(20)
-        tip_label = QLabel("浏览器未安装？点击下载：")
-        tip_label.setObjectName("InfoLabel")
-        left_layout.addWidget(tip_label)
+        # tip_label = QLabel("浏览器未安装？点击下载：")
+        # tip_label.setObjectName("InfoLabel")
+        # left_layout.addWidget(tip_label)
 
-        self.download_edge_btn = QPushButton("下载Edge浏览器")
-        self.download_edge_btn.setFixedHeight(30)
-        self.download_edge_btn.clicked.connect(self.download_edge)
-        left_layout.addWidget(self.download_edge_btn)
+        # self.download_edge_btn = QPushButton("下载Edge浏览器")
+        # self.download_edge_btn.setFixedHeight(30)
+        # self.download_edge_btn.clicked.connect(self.download_edge)
+        # left_layout.addWidget(self.download_edge_btn)
 
-        self.download_chrome_btn = QPushButton("下载 Chrome 浏览器")
-        self.download_chrome_btn.setFixedHeight(30)
+        # self.download_chrome_btn = QPushButton("下载 Chrome 浏览器")
+        # self.download_chrome_btn.setFixedHeight(30)
         # 修复：正确绑定按钮事件
-        self.download_chrome_btn.clicked.connect(self.download_chrome)
-        left_layout.addWidget(self.download_chrome_btn)
+        # self.download_chrome_btn.clicked.connect(self.download_chrome)
+        # left_layout.addWidget(self.download_chrome_btn)
 
         left_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
         main_layout.addWidget(left_panel)

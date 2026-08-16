@@ -4,14 +4,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.edge.service import Service as EdgeService
-# 自动驱动依赖
+# 自动驱动依赖（Win7上可能因TLS/版本链接失效而下载失败，仅作fallback）
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 import pandas as pd
 import time
 import random
 import os
 import sys
-
+import platform
 # -------------------------- 无需手动配置驱动路径 --------------------------
 # -------------------------- 核心配置项 --------------------------
 LIST_URL = "https://ggj.chizhou.gov.cn/front/bidcontent/9005001006"
@@ -19,8 +19,32 @@ CSV_FILE_NAME = "contracts_all_pages.csv"
 BASE_DELAY = 1
 MAX_RETRY = 5
 PAGE_LOAD_TIMEOUT = 120
-
 # ===============================================================
+
+def get_base_dir():
+    """
+    获取程序根目录，兼容 PyInstaller 打包后的环境。
+    - 未打包：返回 .py 文件所在目录
+    - 已打包（exe）：返回 exe 所在目录（用户可在此放 driver/ 文件夹）
+    """
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后：exe 所在目录
+        return os.path.dirname(sys.executable)
+    else:
+        # 开发环境：脚本所在目录
+        return os.path.dirname(os.path.abspath(__file__))
+
+
+def is_win7():
+    """检测是否为Windows 7（Win7最高支持Edge/Chrome 109，部分新参数不兼容）"""
+    if platform.system() == "Windows":
+        release = platform.release()
+        version = platform.version()
+        # Win7: release='7', version='6.1.xxxx'
+        return release == "7" or version.startswith("6.1")
+    return False
+
+
 def find_browser_path(browser_type):
     """常规路径检测浏览器本体（仅用于检查是否安装，不用于驱动）"""
     possible_paths = []
@@ -36,21 +60,17 @@ def find_browser_path(browser_type):
         ]
     else:
         return None
-
     for path in possible_paths:
         if os.path.exists(path):
             return path
     return None
 
+
 def find_chromedriver():
     """
     查找项目内chromedriver
     """
-
-    base_dir = os.path.dirname(
-        os.path.abspath(__file__)
-    )
-
+    base_dir = get_base_dir()
     paths = [
         # 项目driver目录
         os.path.join(
@@ -58,36 +78,52 @@ def find_chromedriver():
             "driver",
             "chromedriver.exe"
         ),
-
         # 当前目录
         os.path.join(
             base_dir,
             "chromedriver.exe"
         ),
-
         # 系统目录
         r"C:\Program Files\Google\Chrome\Application\chromedriver.exe",
         r"C:\Program Files (x86)\Google\Chrome\Application\chromedriver.exe"
     ]
-
-
     for path in paths:
         if os.path.exists(path):
             print("找到ChromeDriver:", path)
             return path
-
-
     return None
+
+
+def find_edgedriver():
+    """
+    查找项目内msedgedriver（Win7上自动下载常失败，优先用本地驱动）
+    查找顺序：driver目录 -> 当前目录 -> Edge安装目录
+    """
+    base_dir = get_base_dir()
+    paths = [
+        os.path.join(base_dir, "driver", "msedgedriver.exe"),
+        os.path.join(base_dir, "msedgedriver.exe"),
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedgedriver.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedgedriver.exe",
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            print("找到EdgeDriver:", path)
+            return path
+    return None
+
 
 def is_browser_installed(browser_type):
     """检测浏览器是否安装"""
     browser_path = find_browser_path(browser_type)
     return browser_path is not None
 
+
 # ===============================================================
 def init_browser(browser_type="Edge", headless=True):
     """
     自动获取匹配版本浏览器驱动，无需手动下载配置
+    Win7兼容：优先本地驱动，自动下载仅作fallback；headless用传统模式
     """
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -95,62 +131,74 @@ def init_browser(browser_type="Edge", headless=True):
     ]
     driver = None
 
+    # 根据系统选择headless参数：Win7/旧版浏览器不支持 --headless=new
+    headless_arg = "--headless" if is_win7() else "--headless=new"
+
     if browser_type == "Chrome":
-
         options = webdriver.ChromeOptions()
-
         if headless:
-            options.add_argument("--headless=new")
-
+            options.add_argument(headless_arg)
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--no-sandbox")
-
         options.add_argument(
             f"user-agent={random.choice(user_agents)}"
         )
-
         driver_path = find_chromedriver()
-
         if not driver_path:
             raise Exception(
                 "未找到chromedriver.exe，请放到程序目录"
             )
-
         service = ChromeService(
             executable_path=driver_path
         )
-
         driver = webdriver.Chrome(
             service=service,
             options=options
         )
-
     elif browser_type == "Edge":
         from selenium.webdriver.edge.options import Options as EdgeOptions
         options = EdgeOptions()
         if headless:
-            options.add_argument("--headless=new")
+            options.add_argument(headless_arg)
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument(f"user-agent={random.choice(user_agents)}")
-        # Edge自动适配驱动
-        service = EdgeService(EdgeChromiumDriverManager().install())
-        driver = webdriver.Edge(service=service, options=options)
 
+        # ===== Win7兼容核心修改：优先本地驱动，自动下载仅作fallback =====
+        driver_path = find_edgedriver()
+        if driver_path:
+            # 找到本地驱动，直接使用（最稳定，不依赖网络）
+            service = EdgeService(executable_path=driver_path)
+        else:
+            # 未找到本地驱动，尝试自动下载
+            # 注意：Win7上此步骤常因TLS版本过低或微软旧版驱动链接失效而失败
+            try:
+                auto_path = EdgeChromiumDriverManager().install()
+                service = EdgeService(auto_path)
+            except Exception as e:
+                raise Exception(
+                    f"未找到msedgedriver.exe，且自动下载失败：{str(e)}\n"
+                    f"【解决办法】请手动下载与Edge版本匹配的msedgedriver.exe，"
+                    f"放到程序目录或driver文件夹下。\n"
+                    f"Win7最高支持Edge 109版本，请下载对应109版本的驱动。\n"
+                    f"下载地址：https://msedgedriver.azureedge.net/ 或 "
+                    f"https://developer.microsoft.com/microsoft-edge/tools/webdriver/"
+                )
+        driver = webdriver.Edge(service=service, options=options)
     else:
         raise ValueError(f"不支持的浏览器类型：{browser_type}")
 
     if not driver:
         raise Exception("浏览器初始化失败")
-
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     driver.set_script_timeout(PAGE_LOAD_TIMEOUT)
     driver.implicitly_wait(10)
     # 去除webdriver检测
     driver.execute_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
     return driver
+
 
 # -------------------------- 页面解析逻辑 --------------------------
 def get_detail_links_from_current_page(driver):
@@ -171,6 +219,7 @@ def get_detail_links_from_current_page(driver):
         print(f"获取链接失败：{str(e)}")
         return []
 
+
 def extract_contract_info(driver, url):
     for retry in range(MAX_RETRY):
         try:
@@ -185,7 +234,6 @@ def extract_contract_info(driver, url):
                     key = cols[0].text.strip()
                     value = cols[1].text.strip()
                     contract_data[key] = value
-
             attachment_link = ""
             try:
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -199,7 +247,6 @@ def extract_contract_info(driver, url):
                     attachment_link = "https://ggj.chizhou.gov.cn" + attachment_link
             except Exception:
                 pass
-
             target_data = {
                 "合同编号": contract_data.get("合同编号", ""),
                 "合同名称": contract_data.get("合同名称", ""),
@@ -220,12 +267,14 @@ def extract_contract_info(driver, url):
             else:
                 return None
 
+
 def save_to_csv(data_list, filename):
     if not data_list:
         print("❌ 无数据")
         return
     df = pd.DataFrame(data_list)
     df.to_csv(filename, index=False, encoding="utf-8-sig")
+
 
 def click_next_page(driver):
     try:
@@ -240,6 +289,7 @@ def click_next_page(driver):
         return True
     except Exception:
         return False
+
 
 # -------------------------- 采集主类 --------------------------
 class ContractCrawler:
@@ -263,14 +313,12 @@ class ContractCrawler:
                 callback("正在初始化浏览器...")
             self.browser = init_browser(browser_type, headless)
             browser = self.browser
-
             all_detail_links = []
             current_page = 1
             if callback:
                 callback("正在打开网站...")
             browser.get(LIST_URL)
             time.sleep(3)
-
             if start_date and end_date:
                 if callback:
                     callback(f"设置查询日期：{start_date} ~ {end_date}")
@@ -288,7 +336,6 @@ class ContractCrawler:
             except Exception as e:
                 if callback:
                     callback(f"搜索按钮点击失败: {e}")
-
             while True:
                 if is_stopped and is_stopped():
                     if callback:
@@ -301,7 +348,6 @@ class ContractCrawler:
                 if not click_next_page(browser):
                     break
                 current_page += 1
-
             total = len(all_detail_links)
             if callback:
                 callback(f"共发现 {total} 个合同链接")
@@ -329,11 +375,9 @@ class ContractCrawler:
                     progress = int(idx * 100 / total)
                     progress_callback(progress)
                 time.sleep(random.uniform(0.5, 1))
-
             if callback:
                 callback(f"采集完成，共{len(all_contract_data)}条")
             return all_contract_data
-
         except Exception as e:
             err_msg = str(e)
             if callback:
@@ -345,6 +389,7 @@ class ContractCrawler:
                     self.browser.quit()
                 except Exception:
                     pass
+
 
 # -------------------------- 测试入口 --------------------------
 if __name__ == "__main__":
