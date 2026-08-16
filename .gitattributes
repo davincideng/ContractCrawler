@@ -1,0 +1,2 @@
+/build/main/main.pkg filter=lfs diff=lfs merge=lfs -text
+/dist/信息采集系统.exe filter=lfs diff=lfs merge=lfs -text
