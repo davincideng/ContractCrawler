@@ -1,0 +1,8 @@
+.venv/
+build/
+dist/
+driver/
+*.exe
+*.pkg
+__pycache__/
+*.spec
